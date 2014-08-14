@@ -1,0 +1,251 @@
+---
+title: "Coursera - Reproducible Research, Peer Assessment 1"
+author: "Thomas Guenther"
+date: "Friday, August 08-14, 2014"
+output: html_document
+---  
+
+---
+## Introduction
+
+The goal is to create a report of data derived from a personal activity monitoring device. This data set contains data of a 2-months time period from an anonymous individual collected during the months of October and November, 2012. It includes the number of steps taken in 5 minute intervals each day. We will need to write a report that answers some questions about the data.
+This report is devided into multiple parts, answering the claimed questions.
+
+### Setup
+
+First we load some libraries used for the report.
+
+```{r, warning=FALSE, message=FALSE}
+library(plyr)
+library(lubridate)
+library(ggplot2)
+library(scales)
+```
+
+Include necessary external scripts.
+
+```{r}
+if(!exists("propmiss", mode = "function")) {
+  source("external.scripts/utils.R")
+}
+```
+
+
+### Read the data
+
+```{r, echo=TRUE}
+data <- read.csv("data/activity.csv", sep = ",", na.strings="NA")
+```
+
+### What is mean total number of steps taken per day?
+
+Convert the dates to lubridate.
+
+```{r}
+data$date <- ymd(data$date)
+```
+
+Now filter the data: create a data frame out of the dates and the sum of all steps per day. Add a column with the month so we can color our plot by month. NA-values will be converted to 0-values.
+
+```{r}
+totStepsPerDay <- ddply(data, .(date, month=factor(lubridate::month(date, label = TRUE))), summarize, totalSteps = sum(steps))
+```
+
+#### Plot the total number of steps taken each day.
+
+I grouped the number of steps by month to visually compare them and get a better overview.
+
+
+```{r, echo=TRUE, warning=FALSE}
+plot <- ggplot(data=totStepsPerDay, aes(x=date, y=totalSteps, fill=month)) +
+  geom_bar(stat="identity") +
+  scale_x_datetime(labels = date_format("%Y, %b %d")) +
+  xlab("days") +
+  ylab(expression("Number of steps per day")) +
+  ggtitle(expression("Total number of steps taken each day")) +
+  theme(plot.title = element_text(color="blue", size=14, vjust=1.0))
+print(plot)
+```
+
+#### <a id="mean_and_median_with_nas"></a>Calculate the mean of all steps per day with removal of NA-values:
+```{r}
+mean(totStepsPerDay$totalSteps, na.rm=TRUE)
+```
+
+#### Calculate the median of all steps per day with removal of NA-values:
+
+```{r}
+median(totStepsPerDay$totalSteps, na.rm=TRUE)
+```
+
+As you can see the mean and median values are close to each other.
+
+
+### What is the average daily activity pattern?
+
+Create a data frame containing the interval and the averaged number of steps across all days. Remove NAs,
+
+```{r}
+avgDailyActivity <- ddply(data, .(interval), summarise, avgNumStepsAcrossAllDays = mean(steps, na.rm=TRUE))
+```
+
+Plot the time series with ggplot2 with line geom.
+
+```{r}
+qplot(interval, avgNumStepsAcrossAllDays, data=avgDailyActivity, geom="line", xlab="5-minute interval", ylab="Average number of steps taken")
+```
+
+#### Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+The number of the interval with the maximal averaged number of steps across all days will be computed as follows:
+
+```{r}
+avgDailyActivity[avgDailyActivity$avgNumStepsAcrossAllDays == max(avgDailyActivity$avgNumStepsAcrossAllDays),]
+```
+
+The interval is 835 and the maximum number of averaged steps across all days is: 206.2
+
+### Imputing missing values
+
+#### Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+
+First my own approach to find missing steps:
+
+```{r}
+missingSteps <- is.na(data$steps)
+sum(missingSteps)
+```
+
+As you can see there are 2304 values missing for the steps variable.
+
+I found a useful script to return a data.frame containing all missing data of an input data.frame. There's also the percentage of the missing data reflected. You can find more information here: [http://gettinggeneticsdone.blogspot.de/2011/02/summarize-missing-data-for-all.html](http://gettinggeneticsdone.blogspot.de/2011/02/summarize-missing-data-for-all.html)
+The function is located in the script **utils.R** of the *external.scripts*-folder and is called **propmiss**.
+
+```{r}
+propmiss(data)
+```
+
+The result of this function shows the same result for the steps variable as recorded by my own approach. It states that approx. 13% of the steps are missing.
+Furthermore it shows that the other variables don't have any missing values.
+
+#### Devise a strategy for filling in all of the missing values in the dataset
+
+The simplest approach to handle missing data would be to remove the rows. But this can tamper the result of an analysis.
+So it's better to replace NAs with approximated values.
+I used the mean for the 5-minute interval and replace the NAs with that values. To do this i join the original data set with the **avgDailyActivity**-data set created above. Afterwards i replaced the missing values successively.
+
+```{r}
+joinedData <- join(data, avgDailyActivity, by="interval")
+joinedData$steps[is.na(joinedData$steps)] <- joinedData$avgNumStepsAcrossAllDays[is.na(joinedData$steps)]
+```
+
+#### Create a new dataset that is equal to the original dataset but with the missing data filled in
+Now i created a new dataset which is similar to the original data set but with imputed missing data:
+
+```{r}
+joinedData <- subset(joinedData, select = -c(avgNumStepsAcrossAllDays))
+
+```
+
+Take a look at some data at the beginning:
+```{r}
+head(joinedData)
+```
+
+Take a look at some data at the end:
+```{r}
+tail(joinedData)
+```
+
+Let's do a final test if all missing data would be replaced:
+
+```{r}
+propmiss(joinedData)
+```
+
+As you can see there are no missing values anymore.
+
+#### Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day
+
+We need some data preparation before plotting the number of steps per day with and without missing values.
+The total number of steps taken each day will be calculated from the data set with replaced NAs.
+Afterwards we add a column indicating the type of steps to the data set with missing data for the steps variable and we do the same with the data set with replaced missing values. Now these data sets will be combined row by row.
+The idea is to have a grouping options in the plot, so we can better see the differences.
+
+```{r}
+totStepsPerDayNoNAs <- ddply(joinedData, .(date, month=factor(lubridate::month(date, label = TRUE))), summarize, totalSteps = sum(steps))
+
+totStepsPerDay$type <- "TotalSteps"
+totStepsPerDayNoNAs$type <- "TotalStepsNoNAs"
+totStepsPerDayWithGrouping <- rbind(totStepsPerDay, totStepsPerDayNoNAs)
+```
+
+Plot the combined data set from above and group by type:
+
+* data with missing values (**TotalSteps**) and
+* data without missing values (**TotalStepsNoNAs**) 
+
+
+```{r, fig.width=12, fig.height=7}
+plot <- ggplot(data=totStepsPerDayWithGrouping, aes(x=date, y=totalSteps, fill=type)) +
+    geom_bar(stat="identity", position="dodge") +
+    scale_x_datetime(labels = date_format("%Y, %b %d")) +
+    xlab("days") +
+    ylab(expression("Number of steps per day")) +
+    ggtitle(expression("Total number of steps taken each day")) +
+    theme(plot.title = element_text(color="blue", size=14, vjust=1.0))
+print(plot)
+```
+
+As someone can see there are some greenish bars (data without missing values) with no red bars aside indicating that there are some missing values.
+
+####  Report the mean and median total number of steps taken per day
+
+The mean of the total number of steps taken per day is:
+
+```{r}
+mean(totStepsPerDayNoNAs$totalSteps)
+```
+
+The median of the total number of steps taken per day is:
+
+```{r}
+median(totStepsPerDayNoNAs$totalSteps)
+```
+
+Comparing theses values with the values computed [above](#mean_and_median_with_nas) shows that there are no sgnificant changes in the mean and median. In fact the mean values are equal and the median has a slightly difference.
+Bottom line is: the impact is very low.
+
+### Are there differences in activity patterns between weekdays and weekends?
+
+#### Create a new factor variable in the dataset with two levels – “weekday” and “weekend”
+
+First we have to add a new variable to the data set and find out if it's a weekday or a weekend.
+
+```{r}
+joinedData$dayType <- ifelse(wday(joinedData$date, label=TRUE) %in% c("Sat", "Sun"), "weekend", "weekday")
+joinedData$dayType <- factor(joinedData$dayType)
+```
+
+#### Make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis)
+
+Prepare the data for plotting: create a data frame out of the average number of steps taken, averaged across all weekday days or weekend days.
+
+```{r}
+dataAvgStepsAcrossAllWeekdays <- ddply(joinedData, .(interval, dayType), summarize, totalSteps = mean(steps))
+```
+
+Plot the data above with the ggplot2 plotting system:
+
+```{r, fig.width=10, fig.height=7}
+ggplot(dataAvgStepsAcrossAllWeekdays, aes(x=interval, y=totalSteps, group=dayType, colour=dayType)) +
+  geom_line() +
+  facet_wrap( ~ dayType, ncol=1) +
+  xlab("5-min. Interval") +
+  ylab("Averaged Number Of Steps taken") +
+  ggtitle("Time series plot across all weekday days or weekend days") +
+  theme(plot.title = element_text(color="blue", size=16, vjust=1.0))
+```
+
+
+That's it.
