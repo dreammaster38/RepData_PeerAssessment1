@@ -22,7 +22,8 @@ library(lubridate)
 library(ggplot2)
 library(scales)
 library(knitr)
-library(markdown)
+
+opts_chunk$set(fig.path='figures/')
 ```
 
 Include necessary external scripts.
@@ -75,7 +76,7 @@ plot <- ggplot(data=totStepsPerDay, aes(x=date, y=totalSteps, fill=month)) +
 print(plot)
 ```
 
-<img src="./peer_assessment_1_files/figure-html/unnamed-chunk-32.png" title="plot of chunk unnamed-chunk-32" alt="plot of chunk unnamed-chunk-32" width="672" />
+![plot of chunk plot1](figures/plot1.png) 
 
 #### <a id="mean_and_median_with_nas"></a>Calculate the mean of all steps per day with removal of NA-values:
 
@@ -117,7 +118,7 @@ Plot the time series with ggplot2 with line geom.
 qplot(interval, avgNumStepsAcrossAllDays, data=avgDailyActivity, geom="line", xlab="5-minute interval", ylab="Average number of steps taken")
 ```
 
-<img src="./peer_assessment_1_files/figure-html/unnamed-chunk-36.png" title="plot of chunk unnamed-chunk-36" alt="plot of chunk unnamed-chunk-36" width="672" />
+![plot of chunk plot2](figures/plot2.png) 
 
 #### Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
 
@@ -273,7 +274,7 @@ plot <- ggplot(data=totStepsPerDayWithGrouping, aes(x=date, y=totalSteps, fill=t
 print(plot)
 ```
 
-<img src="./peer_assessment_1_files/figure-html/unnamed-chunk-46.png" title="plot of chunk unnamed-chunk-46" alt="plot of chunk unnamed-chunk-46" width="1152" />
+![plot of chunk plot3](figures/plot3.png) 
 
 As someone can see there are some greenish bars (data without missing values) with no red bars aside indicating that there are some missing values.
 
@@ -338,7 +339,6 @@ ggplot(dataAvgStepsAcrossAllWeekdays, aes(x=interval, y=totalSteps, group=dayTyp
   theme(plot.title = element_text(color="blue", size=16, vjust=1.0))
 ```
 
-<img src="./peer_assessment_1_files/figure-html/unnamed-chunk-51.png" title="plot of chunk unnamed-chunk-51" alt="plot of chunk unnamed-chunk-51" width="960" />
+![plot of chunk plot4](figures/plot4.png) 
 
-
-
+That's it.

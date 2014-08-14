@@ -20,6 +20,9 @@ library(plyr)
 library(lubridate)
 library(ggplot2)
 library(scales)
+library(knitr)
+
+opts_chunk$set(fig.path='figures/')
 ```
 
 Include necessary external scripts.
@@ -56,7 +59,7 @@ totStepsPerDay <- ddply(data, .(date, month=factor(lubridate::month(date, label 
 I grouped the number of steps by month to visually compare them and get a better overview.
 
 
-```{r, echo=TRUE, warning=FALSE}
+```{r plot1, dev='png', echo=TRUE, warning=FALSE}
 plot <- ggplot(data=totStepsPerDay, aes(x=date, y=totalSteps, fill=month)) +
   geom_bar(stat="identity") +
   scale_x_datetime(labels = date_format("%Y, %b %d")) +
@@ -91,7 +94,7 @@ avgDailyActivity <- ddply(data, .(interval), summarise, avgNumStepsAcrossAllDays
 
 Plot the time series with ggplot2 with line geom.
 
-```{r}
+```{r plot2, dev='png'}
 qplot(interval, avgNumStepsAcrossAllDays, data=avgDailyActivity, geom="line", xlab="5-minute interval", ylab="Average number of steps taken")
 ```
 
@@ -186,7 +189,7 @@ Plot the combined data set from above and group by type:
 * data without missing values (**TotalStepsNoNAs**) 
 
 
-```{r, fig.width=12, fig.height=7}
+```{r plot3, dev='png', fig.width=12, fig.height=7}
 plot <- ggplot(data=totStepsPerDayWithGrouping, aes(x=date, y=totalSteps, fill=type)) +
     geom_bar(stat="identity", position="dodge") +
     scale_x_datetime(labels = date_format("%Y, %b %d")) +
@@ -237,7 +240,7 @@ dataAvgStepsAcrossAllWeekdays <- ddply(joinedData, .(interval, dayType), summari
 
 Plot the data above with the ggplot2 plotting system:
 
-```{r, fig.width=10, fig.height=7}
+```{r plot4, dev='png', fig.width=10, fig.height=7}
 ggplot(dataAvgStepsAcrossAllWeekdays, aes(x=interval, y=totalSteps, group=dayType, colour=dayType)) +
   geom_line() +
   facet_wrap( ~ dayType, ncol=1) +
@@ -246,6 +249,5 @@ ggplot(dataAvgStepsAcrossAllWeekdays, aes(x=interval, y=totalSteps, group=dayTyp
   ggtitle("Time series plot across all weekday days or weekend days") +
   theme(plot.title = element_text(color="blue", size=16, vjust=1.0))
 ```
-
 
 That's it.
